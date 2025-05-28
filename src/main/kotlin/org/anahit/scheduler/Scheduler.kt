@@ -35,7 +35,7 @@ class Scheduler(
         // Validate all task configs
         taskConfigs.forEach { it.validate() }
         logger.info("Tasks Validated & Scheduled: ${taskConfigs
-            .joinToString(", ") { it.task.name }}")
+            .joinToString(", ") { it.task.taskName }}")
         
         isRunning = true
         schedulerJob = scope.launch {
@@ -73,7 +73,7 @@ class Scheduler(
         val now = LocalDateTime.now()
         
         taskConfigs.forEach { config ->
-            val taskName = config.task.name
+            val taskName = config.task.taskName
             val nextExecutionTime = config.getNextExecutionTime(now)
             
             // Skip if a task is already running
@@ -131,7 +131,7 @@ class Scheduler(
      */
     private suspend fun handleTaskError(config: TaskConfig, result: ApiTaskResult.Error) {
         val now = LocalDateTime.now()
-        val taskName = config.task.name
+        val taskName = config.task.taskName
         val currentRetries = taskRetries.getOrDefault(taskName, 0)
         val nextExecutionTime = config.getNextExecutionTime(now)
         
