@@ -4,14 +4,10 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.runBlocking
 import org.anahit.api.FirstApiTask
-import org.anahit.api.ApiTaskResult
-import org.anahit.api.BaseApiTask
 import org.anahit.config.AppConfig
 import org.anahit.config.TaskConfig
 import org.anahit.logging.Logger
 import org.anahit.scheduler.Scheduler
-import java.time.Duration
-import java.time.LocalDateTime
 
 /**
  * Main entry point for the application.
@@ -36,13 +32,14 @@ fun Application.module() {
 
     // Configure database
     val dbConfig = appConfig.config("database")
-    val appDbConfig = AppConfig(
-        dbUrl = dbConfig.property("url").getString(),
-        dbUser = dbConfig.property("user").getString(),
-        dbPassword = dbConfig.property("password").getString(),
-        dbDriver = dbConfig.propertyOrNull("driver")?.getString() ?: "org.postgresql.Driver",
-        maxPoolSize = dbConfig.propertyOrNull("maxPoolSize")?.getString()?.toInt() ?: 10
-    )
+    val appDbConfig =
+        AppConfig(
+            dbUrl = dbConfig.property("url").getString(),
+            dbUser = dbConfig.property("user").getString(),
+            dbPassword = dbConfig.property("password").getString(),
+            dbDriver = dbConfig.propertyOrNull("driver")?.getString() ?: "org.postgresql.Driver",
+            maxPoolSize = dbConfig.propertyOrNull("maxPoolSize")?.getString()?.toInt() ?: 10,
+        )
 
     // Configure scheduler
     val schedulerConfig = appConfig.config("scheduler")
@@ -99,7 +96,7 @@ private fun createTasks(): List<TaskConfig> {
             parameters = firstTask.parameters,
             maxRetries = firstTask.maxRetries,
             retryDelay = firstTask.retryDelay,
-            timeout = firstTask.timeout
-        )
+            timeout = firstTask.timeout,
+        ),
     )
 }

@@ -1,6 +1,6 @@
 package org.anahit.api
 
-class FirstApiTask: BaseApiTask() {
+class FirstApiTask : BaseApiTask() {
     override val taskName: String = "FirstApiTask"
     override val cronExpression: String = "0 0/1 * * * ?"
     override val parameters: Map<String, Any> = emptyMap()
