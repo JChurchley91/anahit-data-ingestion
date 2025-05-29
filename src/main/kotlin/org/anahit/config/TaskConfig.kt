@@ -14,6 +14,9 @@ data class TaskConfig(
      * The API task to execute.
      */
     val task: ApiTask,
+    val taskId: Int,
+    val taskName: String,
+    val taskDescription: String,
     /**
      * The cron expression for scheduling the task.
      * This follows the Quartz cron expression format.

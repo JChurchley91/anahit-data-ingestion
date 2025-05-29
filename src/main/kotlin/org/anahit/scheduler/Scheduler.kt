@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import org.anahit.api.ApiTaskResult
 import org.anahit.config.TaskConfig
 import org.anahit.logging.Logger
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 
@@ -34,8 +35,10 @@ class Scheduler(
         // Validate all task configs
         taskConfigs.forEach { it.validate() }
         logger.info(
-            "Tasks Validated & Scheduled: ${taskConfigs
-                .joinToString(", ") { it.task.taskName }}",
+            "Tasks Validated & Scheduled: ${
+                taskConfigs
+                    .joinToString(", ") { it.task.taskName }
+            }",
         )
 
         isRunning = true
@@ -55,10 +58,10 @@ class Scheduler(
      */
     private fun checkAndRunTasks() {
         val now = LocalDateTime.now()
+        val today = LocalDate.now()
 
         taskConfigs.forEach { config ->
             val taskName = config.task.taskName
-            val nextExecutionTime = config.getNextExecutionTime(now)
 
             // Skip if a task is already running
             if (runningTasks.containsKey(taskName) && runningTasks[taskName]?.isActive == true) {
@@ -70,109 +73,36 @@ class Scheduler(
                 val job =
                     scope.launch {
                         try {
+                            config.task.saveApiTask(config)
                             // Reset retry count for new execution
                             taskRetries[taskName] = 0
 
                             // Execute the task with timeout
-                            val result =
+                            val result: Pair<ApiTaskResult, MutableList<Any>> =
                                 withTimeoutOrNull(config.timeout.toMillis()) {
-                                    config.task.execute(config.parameters)
-                                } ?: ApiTaskResult.Error(
-                                    taskName = taskName,
-                                    errorMessage = "Task Execution Timed Out After ${config.timeout.seconds} Seconds",
-                                    timestamp = LocalDateTime.now(),
+                                    config.task.execute()
+                                } ?: Pair(
+                                    ApiTaskResult.Error(
+                                        taskId = config.taskId,
+                                        apiTaskRunName = "$today-${config.taskName}",
+                                        apiTaskRunStatus = "Failed",
+                                        apiTaskRunExecutedAt = now,
+                                    ),
+                                    mutableListOf(),
                                 )
 
-                            // Handle the result
-                            when (result) {
-                                is ApiTaskResult.Success -> {
-                                    logger.info(
-                                        "Task $taskName Completed Successfully - " +
-                                            "Task Will Run Again At $nextExecutionTime",
-                                    )
-                                    config.task.saveResult(result)
-                                }
-                                is ApiTaskResult.Error -> {
-                                    handleTaskError(config, result)
-                                }
-                            }
+                            logger.info("Task $taskName Completed Successfully")
+                            config.task.saveApiTaskRun(result)
+                            config.task.saveApiResults(result)
                         } catch (e: Exception) {
                             logger.error("Unexpected Error Executing Task $taskName", e)
-                            val result =
-                                ApiTaskResult.Error(
-                                    taskName = taskName,
-                                    errorMessage = "Unexpected Error: ${e.message}",
-                                    timestamp = LocalDateTime.now(),
-                                )
-                            handleTaskError(config, result)
+                            logger.error("Task $taskName Failed")
                         } finally {
                             runningTasks.remove(taskName)
                         }
                     }
-
                 runningTasks[taskName] = job
             }
-        }
-    }
-
-    /**
-     * Handle a task error, potentially retrying the task.
-     */
-    private suspend fun handleTaskError(
-        config: TaskConfig,
-        result: ApiTaskResult.Error,
-    ) {
-        val now = LocalDateTime.now()
-        val taskName = config.task.taskName
-        val currentRetries = taskRetries.getOrDefault(taskName, 0)
-        val nextExecutionTime = config.getNextExecutionTime(now)
-
-        if (currentRetries < config.maxRetries) {
-            val nextRetry = currentRetries + 1
-            taskRetries[taskName] = nextRetry
-
-            logger.warn(
-                "Task $taskName Failed, Scheduling Retry " +
-                    "$nextRetry/${config.maxRetries} After ${config.retryDelay.seconds} Seconds",
-            )
-
-            // Save the error result
-            config.task.saveResult(result)
-
-            // Schedule retry
-            delay(config.retryDelay.toMillis())
-
-            // Retry the task
-            val retryResult =
-                try {
-                    withTimeoutOrNull(config.timeout.toMillis()) {
-                        config.task.execute(config.parameters)
-                    } ?: ApiTaskResult.Error(
-                        taskName = taskName,
-                        errorMessage = "Retry Timed Out After ${config.timeout.seconds} Seconds",
-                        timestamp = LocalDateTime.now(),
-                    )
-                } catch (e: Exception) {
-                    ApiTaskResult.Error(
-                        taskName = taskName,
-                        errorMessage = "Error During Retry: ${e.message}",
-                        timestamp = LocalDateTime.now(),
-                    )
-                }
-
-            // Save the retry result
-            config.task.saveResult(retryResult)
-
-            if (retryResult is ApiTaskResult.Error && nextRetry < config.maxRetries) {
-                // Continue with more retries if needed
-                handleTaskError(config, retryResult)
-            }
-        } else {
-            logger.error(
-                "Task $taskName Failed After ${config.maxRetries} Retries -" +
-                    "Task Will Try Again At $nextExecutionTime",
-            )
-            config.task.saveResult(result)
         }
     }
 }

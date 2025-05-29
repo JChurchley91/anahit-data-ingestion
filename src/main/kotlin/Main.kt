@@ -3,7 +3,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.runBlocking
-import org.anahit.api.FirstApiTask
+import org.anahit.api.TrendingNewsArticles
 import org.anahit.config.AppConfig
 import org.anahit.config.TaskConfig
 import org.anahit.logging.Logger
@@ -32,6 +32,7 @@ fun Application.module() {
 
     // Configure database
     val dbConfig = appConfig.config("database")
+
     val appDbConfig =
         AppConfig(
             dbUrl = dbConfig.property("url").getString(),
@@ -86,17 +87,18 @@ fun Application.configureRouting() {
  * Create and configure the tasks to be scheduled.
  */
 private fun createTasks(): List<TaskConfig> {
-    // Example task - replace with actual tasks
-    val firstTask = FirstApiTask()
+    val trendingNewsArticles = TrendingNewsArticles()
 
     return listOf(
         TaskConfig(
-            task = firstTask,
-            cronExpression = firstTask.cronExpression,
-            parameters = firstTask.parameters,
-            maxRetries = firstTask.maxRetries,
-            retryDelay = firstTask.retryDelay,
-            timeout = firstTask.timeout,
+            task = trendingNewsArticles,
+            taskId = trendingNewsArticles.taskId,
+            taskName = trendingNewsArticles.taskName,
+            taskDescription = trendingNewsArticles.taskDescription,
+            cronExpression = trendingNewsArticles.cronExpression,
+            maxRetries = trendingNewsArticles.maxRetries,
+            retryDelay = trendingNewsArticles.retryDelay,
+            timeout = trendingNewsArticles.timeout,
         ),
     )
 }

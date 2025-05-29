@@ -5,7 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.anahit.logging.Logger
-import org.anahit.models.ApiTaskResultTable
+import org.anahit.models.ApiTaskRunsTable
 import org.anahit.models.ApiTaskTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -53,7 +53,7 @@ class AppConfig(
      */
     object Tables {
         val apiTasks = ApiTaskTable
-        val apiTaskResults = ApiTaskResultTable
+        val apiTaskResults = ApiTaskRunsTable
         val all = arrayOf(apiTasks, apiTaskResults)
     }
 
