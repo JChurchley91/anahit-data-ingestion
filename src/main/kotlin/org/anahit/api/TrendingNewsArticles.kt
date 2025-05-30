@@ -92,69 +92,81 @@ class TrendingNewsArticles : BaseApiTask() {
      * retrieved news articles. In case of failure, the list may be empty.
      */
     override suspend fun execute(): Pair<ApiTaskResult, MutableList<Any>> {
-        logger.info("Fetching News From NewsAPI.org")
-        val client =
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            prettyPrint = true
-                            isLenient = true
-                            ignoreUnknownKeys = true
-                        },
-                    )
-                }
-            }
-
-        try {
-            val apiResponses = mutableListOf<Any>()
-
-            for (category in categories) {
-                val response =
-                    client.get(
-                        "https://newsapi.org/v2/" +
-                            "top-headlines",
-                    ) {
-                        parameter("category", category)
-                        header("X-Api-Key", apiKey)
-                    }
-
-                if (response.status == HttpStatusCode.OK) {
-                    val newsApiResponse = response.body<NewsApiResponse>()
-                    apiResponses.add(newsApiResponse)
-                } else {
-                    logger.error("Failed To Fetch News From NewsAPI.org")
-                    return Pair(
-                        ApiTaskResult.Error(
-                            taskId = taskId,
-                            apiTaskRunName = "$now-$taskName",
-                            apiTaskRunStatus = "Success",
-                            apiTaskRunExecutedAt = runtime,
-                        ),
-                        apiResponses,
-                    )
-                }
-            }
+        if (checkExistingApiResult(taskName)) {
+            logger.info("Task $taskName already executed today, skipping.")
             return Pair(
                 ApiTaskResult.Success(
                     taskId = taskId,
                     apiTaskRunName = "$now-$taskName",
-                    apiTaskRunStatus = "Success",
+                    apiTaskRunStatus = "Skipped",
                     apiTaskRunExecutedAt = runtime,
                 ),
-                apiResponses,
+                mutableListOf(),
             )
-        } catch (exception: Exception) {
-            logger.error("Failed To Fetch News From NewsAPI.org", exception)
-            return Pair(
-                ApiTaskResult.Error(
-                    taskId = taskId,
-                    apiTaskRunName = "$now-$taskName",
-                    apiTaskRunStatus = "Failed",
-                    apiTaskRunExecutedAt = runtime,
-                ),
-                second = mutableListOf(),
-            )
+        } else {
+            logger.info("Fetching News From NewsAPI.org")
+            val client =
+                HttpClient(CIO) {
+                    install(ContentNegotiation) {
+                        json(
+                            Json {
+                                prettyPrint = true
+                                isLenient = true
+                                ignoreUnknownKeys = true
+                            },
+                        )
+                    }
+                }
+            try {
+                val apiResponses = mutableListOf<Any>()
+
+                for (category in categories) {
+                    val response =
+                        client.get(
+                            "https://newsapi.org/v2/" +
+                                "top-headlines",
+                        ) {
+                            parameter("category", category)
+                            header("X-Api-Key", apiKey)
+                        }
+
+                    if (response.status == HttpStatusCode.OK) {
+                        val newsApiResponse = response.body<NewsApiResponse>()
+                        apiResponses.add(newsApiResponse)
+                    } else {
+                        logger.error("Failed To Fetch News From NewsAPI.org")
+                        return Pair(
+                            ApiTaskResult.Error(
+                                taskId = taskId,
+                                apiTaskRunName = "$now-$taskName",
+                                apiTaskRunStatus = "Success",
+                                apiTaskRunExecutedAt = runtime,
+                            ),
+                            apiResponses,
+                        )
+                    }
+                }
+                return Pair(
+                    ApiTaskResult.Success(
+                        taskId = taskId,
+                        apiTaskRunName = "$now-$taskName",
+                        apiTaskRunStatus = "Success",
+                        apiTaskRunExecutedAt = runtime,
+                    ),
+                    apiResponses,
+                )
+            } catch (exception: Exception) {
+                logger.error("Failed To Fetch News From NewsAPI.org", exception)
+                return Pair(
+                    ApiTaskResult.Error(
+                        taskId = taskId,
+                        apiTaskRunName = "$now-$taskName",
+                        apiTaskRunStatus = "Failed",
+                        apiTaskRunExecutedAt = runtime,
+                    ),
+                    second = mutableListOf(),
+                )
+            }
         }
     }
 
