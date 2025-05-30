@@ -6,6 +6,7 @@ import org.anahit.models.ApiTaskRunsTable
 import org.anahit.models.ApiTaskTable
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -62,7 +63,7 @@ interface ApiTask {
      * Do not call the API again if so, to save credits.
      * @result boolean to confirm if the API call exists for today or not.
      */
-    suspend fun checkExistingApiResult(): Boolean = false
+    suspend fun checkExistingApiResult(taskName: String): Boolean = false
 
     /**
      * Save the API task to ApiTaskTable.
@@ -111,6 +112,30 @@ abstract class BaseApiTask : ApiTask {
     protected val now: LocalDate? = LocalDate.now()
 
     /**
+     * Checks if an API task run result already exists in the database for a given task name.
+     * The check is based on a unique identifier constructed using the current timestamp and task name.
+     *
+     * @param taskName The name of the task whose existence in the database needs to be verified.
+     * @return A Boolean value indicating whether the API task run result exists.
+     * Returns true if it exists, false otherwise, or in case of an error.
+     */
+    override suspend fun checkExistingApiResult(taskName: String): Boolean {
+        try {
+            val searchName = "$now-$taskName"
+
+            return transaction {
+                ApiTaskRunsTable
+                    .select { ApiTaskRunsTable.apiTaskRunName eq searchName }
+                    .count() > 0
+            }
+        } catch (e: Exception) {
+            // Log the error and return false to allow the API call as a fallback
+            println("Error checking task runs: ${e.message}")
+            return false
+        }
+    }
+
+    /**
      * Saves or updates the configuration of an API task in the database.
      * If the task with the given ID already exists and its properties differ,
      * it will be updated. Otherwise, a new record will be inserted.
@@ -122,7 +147,7 @@ abstract class BaseApiTask : ApiTask {
      */
     override suspend fun saveApiTask(taskConfig: TaskConfig): Boolean {
         try {
-            org.jetbrains.exposed.sql.transactions.transaction {
+            transaction {
                 val existingTask =
                     ApiTaskTable
                         .select { ApiTaskTable.apiTaskId eq taskConfig.taskId }

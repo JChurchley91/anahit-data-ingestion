@@ -84,10 +84,6 @@ class TrendingNewsArticles : BaseApiTask() {
         val name: String,
     )
 
-    override suspend fun checkExistingApiResult(): Boolean {
-        TODO("Not yet implemented")
-    }
-
     /**
      * Executes the task to fetch news articles from the NewsAPI.org service based on defined categories.
      *
