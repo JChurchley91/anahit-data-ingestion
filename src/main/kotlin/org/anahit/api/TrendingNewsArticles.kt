@@ -13,6 +13,10 @@ import kotlinx.serialization.json.Json
 import java.time.Duration
 import java.time.LocalDateTime
 
+/**
+ * Represents a task for fetching the latest trending news articles from the NewsAPI.org service.
+ * This task is scheduled to run at defined intervals and retrieves news articles across multiple predefined categories.
+ */
 class TrendingNewsArticles : BaseApiTask() {
     override val taskId: Int = 1
     override val taskName: String = "TrendingNewsArticles"
@@ -25,8 +29,15 @@ class TrendingNewsArticles : BaseApiTask() {
     private val runtime = LocalDateTime.now()
     private val apiKey = "8e57b6225f964253a6c9737ed851dc54"
     private val categories: List<String> = listOf("business", "technology", "science", "sports")
-    private val pageSize: Int = 5
 
+    /**
+     * Represents the response from a news API, providing details about the status of the response,
+     * the total number of results, and a list of articles.
+     *
+     * @property status The status of the API response (e.g., "ok", "error").
+     * @property totalResults The total number of news articles available from the API query.
+     * @property articles A list of news articles retrieved from the API.
+     */
     @Serializable
     data class NewsApiResponse(
         val status: String,
@@ -35,6 +46,18 @@ class TrendingNewsArticles : BaseApiTask() {
         val articles: List<Article>,
     )
 
+    /**
+     * Represents a single news article with various metadata and content.
+     *
+     * @property source The source of the article, providing details about where it originated.
+     * @property author The name of the author of the article, if available.
+     * @property title The title of the article.
+     * @property description A brief description or summary of the article, if available.
+     * @property url The direct URL to access the full article.
+     * @property imageUrl The URL of the image associated with the article, if available.
+     * @property publishedAt The timestamp of when the article was published.
+     * @property content The main content of the article, if available.
+     */
     @Serializable
     data class Article(
         val source: Source,
@@ -49,6 +72,12 @@ class TrendingNewsArticles : BaseApiTask() {
         val content: String?,
     )
 
+    /**
+     * Represents the source of a news article.
+     *
+     * @property id The unique identifier for the source, or null if the ID is unavailable.
+     * @property name The name of the source.
+     */
     @Serializable
     data class Source(
         val id: String?,
@@ -59,6 +88,13 @@ class TrendingNewsArticles : BaseApiTask() {
         TODO("Not yet implemented")
     }
 
+    /**
+     * Executes the task to fetch news articles from the NewsAPI.org service based on defined categories.
+     *
+     * @return A pair containing an instance of [ApiTaskResult], which indicates the result of the API task execution,
+     * and a mutable list of objects representing the responses from the API. In case of success, the list contains the
+     * retrieved news articles. In case of failure, the list may be empty.
+     */
     override suspend fun execute(): Pair<ApiTaskResult, MutableList<Any>> {
         logger.info("Fetching News From NewsAPI.org")
         val client =
@@ -84,7 +120,6 @@ class TrendingNewsArticles : BaseApiTask() {
                             "top-headlines",
                     ) {
                         parameter("category", category)
-                        parameter("pageSize", pageSize)
                         header("X-Api-Key", apiKey)
                     }
 
