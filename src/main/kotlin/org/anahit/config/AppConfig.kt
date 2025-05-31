@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.anahit.logging.Logger
 import org.anahit.models.ApiTaskRunsTable
 import org.anahit.models.ApiTaskTable
+import org.anahit.models.TrendingNewsArticlesTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -54,7 +55,8 @@ class AppConfig(
     object Tables {
         val apiTasks = ApiTaskTable
         val apiTaskResults = ApiTaskRunsTable
-        val all = arrayOf(apiTasks, apiTaskResults)
+        val trendingNewsArticles = TrendingNewsArticlesTable
+        val all = arrayOf(apiTasks, apiTaskResults, trendingNewsArticles)
     }
 
     /**

@@ -10,6 +10,9 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.anahit.models.TrendingNewsArticlesTable
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -26,9 +29,15 @@ class TrendingNewsArticles : BaseApiTask() {
     override val maxRetries: Int = 3
     override val retryDelay: Duration = Duration.ofMinutes(1)
     override val timeout: Duration = Duration.ofMinutes(5)
-    private val runtime = LocalDateTime.now()
+    private val taskRunTime = LocalDateTime.now()
     private val apiKey = "8e57b6225f964253a6c9737ed851dc54"
-    private val categories: List<String> = listOf("business", "technology", "science", "sports")
+
+    val defaultJson =
+        Json {
+            prettyPrint = true
+            isLenient = true
+            ignoreUnknownKeys = true
+        }
 
     /**
      * Represents the response from a news API, providing details about the status of the response,
@@ -50,38 +59,25 @@ class TrendingNewsArticles : BaseApiTask() {
      * Represents a single news article with various metadata and content.
      *
      * @property source The source of the article, providing details about where it originated.
-     * @property author The name of the author of the article, if available.
      * @property title The title of the article.
      * @property description A brief description or summary of the article, if available.
      * @property url The direct URL to access the full article.
-     * @property imageUrl The URL of the image associated with the article, if available.
      * @property publishedAt The timestamp of when the article was published.
-     * @property content The main content of the article, if available.
      */
     @Serializable
     data class Article(
         val source: Source,
-        val author: String?,
-        val title: String,
+        val title: String?,
         val description: String?,
-        val url: String,
-        @SerialName("urlToImage")
-        val imageUrl: String?,
+        val url: String?,
         @SerialName("publishedAt")
-        val publishedAt: String,
-        val content: String?,
+        val publishedAt: String?,
     )
 
-    /**
-     * Represents the source of a news article.
-     *
-     * @property id The unique identifier for the source, or null if the ID is unavailable.
-     * @property name The name of the source.
-     */
     @Serializable
     data class Source(
         val id: String?,
-        val name: String,
+        val name: String?,
     )
 
     /**
@@ -99,7 +95,7 @@ class TrendingNewsArticles : BaseApiTask() {
                     taskId = taskId,
                     apiTaskRunName = "$now-$taskName",
                     apiTaskRunStatus = "Skipped",
-                    apiTaskRunExecutedAt = runtime,
+                    apiTaskRunExecutedAt = taskRunTime,
                 ),
                 mutableListOf(),
             )
@@ -107,51 +103,37 @@ class TrendingNewsArticles : BaseApiTask() {
             logger.info("Fetching News From NewsAPI.org")
             val client =
                 HttpClient(CIO) {
-                    install(ContentNegotiation) {
-                        json(
-                            Json {
-                                prettyPrint = true
-                                isLenient = true
-                                ignoreUnknownKeys = true
-                            },
-                        )
-                    }
                 }
             try {
                 val apiResponses = mutableListOf<Any>()
+                val response =
+                    client.get(
+                        "https://newsapi.org/v2/top-headlines" +
+                            "?country=us&apiKey=$apiKey",
+                    )
+                val responseBody: String = response.body()
 
-                for (category in categories) {
-                    val response =
-                        client.get(
-                            "https://newsapi.org/v2/" +
-                                "top-headlines",
-                        ) {
-                            parameter("category", category)
-                            header("X-Api-Key", apiKey)
-                        }
-
-                    if (response.status == HttpStatusCode.OK) {
-                        val newsApiResponse = response.body<NewsApiResponse>()
-                        apiResponses.add(newsApiResponse)
-                    } else {
-                        logger.error("Failed To Fetch News From NewsAPI.org")
-                        return Pair(
-                            ApiTaskResult.Error(
-                                taskId = taskId,
-                                apiTaskRunName = "$now-$taskName",
-                                apiTaskRunStatus = "Success",
-                                apiTaskRunExecutedAt = runtime,
-                            ),
-                            apiResponses,
-                        )
-                    }
+                if (response.status == HttpStatusCode.OK) {
+                    val newsApiResponse: NewsApiResponse = defaultJson.decodeFromString(responseBody)
+                    apiResponses.add(newsApiResponse)
+                } else {
+                    logger.error("Failed To Fetch News From NewsAPI.org")
+                    return Pair(
+                        ApiTaskResult.Error(
+                            taskId = taskId,
+                            apiTaskRunName = "$now-$taskName",
+                            apiTaskRunStatus = "Failed",
+                            apiTaskRunExecutedAt = taskRunTime,
+                        ),
+                        apiResponses,
+                    )
                 }
                 return Pair(
                     ApiTaskResult.Success(
                         taskId = taskId,
                         apiTaskRunName = "$now-$taskName",
                         apiTaskRunStatus = "Success",
-                        apiTaskRunExecutedAt = runtime,
+                        apiTaskRunExecutedAt = taskRunTime,
                     ),
                     apiResponses,
                 )
@@ -162,7 +144,7 @@ class TrendingNewsArticles : BaseApiTask() {
                         taskId = taskId,
                         apiTaskRunName = "$now-$taskName",
                         apiTaskRunStatus = "Failed",
-                        apiTaskRunExecutedAt = runtime,
+                        apiTaskRunExecutedAt = taskRunTime,
                     ),
                     second = mutableListOf(),
                 )
@@ -176,7 +158,36 @@ class TrendingNewsArticles : BaseApiTask() {
             MutableList<Any>,
         >,
     ): Boolean {
-        println("Saving Result")
+        try {
+            val apiResponses: MutableList<NewsApiResponse> =
+                results.second
+                    .filterIsInstance<NewsApiResponse>()
+                    .toMutableList()
+
+            if (apiResponses.isEmpty()) {
+                logger.info("No News API Responses Found; Skipping Save")
+                return true
+            } else {
+                val top10Articles = apiResponses.flatMap { it.articles }.take(10)
+                for (article in top10Articles) {
+                    transaction {
+                        TrendingNewsArticlesTable.insert {
+                            it[apiTaskId] = taskId
+                            it[apiTaskRunName] = results.first.apiTaskRunName
+                            it[articleSourceName] = article.source.name.toString()
+                            it[articleTitle] = article.title.toString()
+                            it[articleDescription] = article.description.toString()
+                            it[articleUrl] = article.url.toString()
+                            it[articlePublishedAt] = article.publishedAt.toString()
+                            it[articleSavedAt] = taskRunTime
+                        }
+                    }
+                }
+            }
+        } catch (exception: Exception) {
+            logger.error("Failed To Save News API Responses", exception)
+            return false
+        }
         return true
     }
 }

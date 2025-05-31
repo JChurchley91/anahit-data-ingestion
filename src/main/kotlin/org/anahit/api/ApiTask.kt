@@ -205,7 +205,7 @@ abstract class BaseApiTask : ApiTask {
         >,
     ): Boolean {
         try {
-            org.jetbrains.exposed.sql.transactions.transaction {
+            transaction {
                 ApiTaskRunsTable.insert {
                     it[apiTaskId] = results.first.taskId
                     it[apiTaskRunName] = results.first.apiTaskRunName
