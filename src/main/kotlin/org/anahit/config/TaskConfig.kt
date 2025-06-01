@@ -24,10 +24,6 @@ data class TaskConfig(
      */
     val cronExpression: String,
     /**
-     * Parameters to pass to the task when executing.
-     */
-    val parameters: Map<String, Any> = emptyMap(),
-    /**
      * Whether the task should be enabled.
      */
     val enabled: Boolean = true,
@@ -55,19 +51,6 @@ data class TaskConfig(
         require(maxRetries >= 0) { "Max retries must be non-negative" }
         require(!retryDelay.isNegative) { "Retry delay must be non-negative" }
         require(!timeout.isNegative) { "Timeout must be non-negative" }
-    }
-
-    /**
-     * Calculates the next execution time based on the cron expression.
-     *
-     * @param from The time to calculate the next execution from
-     * @return The next execution time, or null if the task will never run again
-     */
-    fun getNextExecutionTime(from: LocalDateTime = LocalDateTime.now()): LocalDateTime? {
-        val cronExpression = CronExpression(this.cronExpression)
-        val date = java.util.Date.from(from.atZone(java.time.ZoneId.systemDefault()).toInstant())
-        val nextDate = cronExpression.getNextValidTimeAfter(date) ?: return null
-        return LocalDateTime.ofInstant(nextDate.toInstant(), java.time.ZoneId.systemDefault())
     }
 
     /**

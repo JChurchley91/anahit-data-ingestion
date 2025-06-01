@@ -52,6 +52,9 @@ dependencies {
     // Testing
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
+
+    // Env
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 }
 
 tasks.test {

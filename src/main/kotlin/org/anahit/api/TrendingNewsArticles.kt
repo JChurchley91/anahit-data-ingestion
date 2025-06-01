@@ -1,5 +1,6 @@
 package org.anahit.api
 
+import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.*
@@ -18,7 +19,7 @@ import java.time.LocalDateTime
  * Represents a task for fetching the latest trending news articles from the NewsAPI.org service.
  * This task is scheduled to run at defined intervals and retrieves news articles across multiple predefined categories.
  */
-class TrendingNewsArticles : BaseApiTask() {
+class TrendingNewsArticles(environmentVariables: Dotenv) : BaseApiTask(){
     override val taskId: Int = 1
     override val taskName: String = "TrendingNewsArticles"
     override val taskDescription: String = "Fetches the latest trending news articles from the newsapi.org"
@@ -28,11 +29,10 @@ class TrendingNewsArticles : BaseApiTask() {
     override val retryDelay: Duration = Duration.ofMinutes(1)
     override val timeout: Duration = Duration.ofMinutes(5)
     private val taskRunTime = LocalDateTime.now()
-    private val apiKey = "8e57b6225f964253a6c9737ed851dc54"
+    private val apiKey = environmentVariables.get("NEWS_API_DOT_ORG")
     private val countries: List<String> = listOf("US")
     private val categories: List<String> = listOf("general", "business", "technology", "health")
-
-    val defaultJson =
+    private val defaultJson =
         Json {
             prettyPrint = true
             isLenient = true

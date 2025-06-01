@@ -1,3 +1,4 @@
+import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.server.application.*
 import io.ktor.server.netty.*
 import io.ktor.server.response.*
@@ -5,6 +6,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.runBlocking
 import org.anahit.api.TrendingNewsArticles
 import org.anahit.config.AppConfig
+import org.anahit.config.EnvironmentConfig
 import org.anahit.config.TaskConfig
 import org.anahit.logging.Logger
 import org.anahit.scheduler.Scheduler
@@ -30,16 +32,18 @@ fun Application.module() {
     // Get configuration from application.conf
     val appConfig = environment.config
 
-    // Configure database
-    val dbConfig = appConfig.config("database")
+    // Retrieve env variables
+    val envConfig = EnvironmentConfig()
+    val environmentVariables: Dotenv = envConfig.dotenv
 
+    // Configure database
     val appDbConfig =
         AppConfig(
-            dbUrl = dbConfig.property("url").getString(),
-            dbUser = dbConfig.property("user").getString(),
-            dbPassword = dbConfig.property("password").getString(),
-            dbDriver = dbConfig.propertyOrNull("driver")?.getString() ?: "org.postgresql.Driver",
-            maxPoolSize = dbConfig.propertyOrNull("maxPoolSize")?.getString()?.toInt() ?: 10,
+            dbUrl = environmentVariables.get("DB_URL"),
+            dbUser = environmentVariables.get("DB_USER"),
+            dbPassword = environmentVariables.get("DB_PASSWORD"),
+            dbDriver = environmentVariables.get("DB_DRIVER"),
+            maxPoolSize = environmentVariables.get("DB_MAX_POOL_SIZE").toInt(),
         )
 
     // Configure scheduler
@@ -57,7 +61,7 @@ fun Application.module() {
                 appDbConfig.initialize()
 
                 // Create and configure tasks
-                val tasks = createTasks()
+                val tasks = createTasks(environmentVariables)
 
                 // Start the scheduler
                 val scheduler = Scheduler(tasks, checkInterval)
@@ -86,8 +90,8 @@ fun Application.configureRouting() {
 /**
  * Create and configure the tasks to be scheduled.
  */
-private fun createTasks(): List<TaskConfig> {
-    val trendingNewsArticles = TrendingNewsArticles()
+private fun createTasks(environmentVariables: Dotenv): List<TaskConfig> {
+    val trendingNewsArticles = TrendingNewsArticles(environmentVariables)
 
     return listOf(
         TaskConfig(

@@ -107,7 +107,7 @@ interface ApiTask {
 /**
  * Base class for API tasks that provides common functionality.
  */
-abstract class BaseApiTask : ApiTask {
+abstract class BaseApiTask: ApiTask {
     protected val logger = Logger.getLogger(this::class.java.name)
     protected val now: LocalDate? = LocalDate.now()
 
