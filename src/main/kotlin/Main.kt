@@ -66,7 +66,6 @@ fun Application.module() {
                 // Start the scheduler
                 val scheduler = Scheduler(tasks, checkInterval)
                 scheduler.start()
-
                 logger.info("Application Initialized Successfully")
             } catch (exception: Exception) {
                 logger.error("Failed To Initialize Application", exception)
