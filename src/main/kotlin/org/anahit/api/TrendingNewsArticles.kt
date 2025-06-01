@@ -8,7 +8,6 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.anahit.models.TrendingNewsArticlesTable
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -19,7 +18,9 @@ import java.time.LocalDateTime
  * Represents a task for fetching the latest trending news articles from the NewsAPI.org service.
  * This task is scheduled to run at defined intervals and retrieves news articles across multiple predefined categories.
  */
-class TrendingNewsArticles(environmentVariables: Dotenv) : BaseApiTask(){
+class TrendingNewsArticles(
+    environmentVariables: Dotenv,
+) : BaseApiTask() {
     override val taskId: Int = 1
     override val taskName: String = "TrendingNewsArticles"
     override val taskDescription: String = "Fetches the latest trending news articles from the newsapi.org"
@@ -32,12 +33,6 @@ class TrendingNewsArticles(environmentVariables: Dotenv) : BaseApiTask(){
     private val apiKey = environmentVariables.get("NEWS_API_DOT_ORG")
     private val countries: List<String> = listOf("US")
     private val categories: List<String> = listOf("general", "business", "technology", "health")
-    private val defaultJson =
-        Json {
-            prettyPrint = true
-            isLenient = true
-            ignoreUnknownKeys = true
-        }
 
     /**
      * Represents the response from a news API, providing details about the status of the response,

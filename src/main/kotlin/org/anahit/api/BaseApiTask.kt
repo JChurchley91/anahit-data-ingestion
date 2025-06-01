@@ -1,5 +1,6 @@
 package org.anahit.api
 
+import kotlinx.serialization.json.Json
 import org.anahit.config.TaskConfig
 import org.anahit.logging.Logger
 import org.anahit.models.ApiTaskRunsTable
@@ -12,9 +13,15 @@ import java.time.LocalDate
 /**
  * Base class for API tasks that provides common functionality.
  */
-abstract class BaseApiTask: ApiTask {
+abstract class BaseApiTask : ApiTask {
     protected val logger = Logger.getLogger(this::class.java.name)
     protected val now: LocalDate? = LocalDate.now()
+    protected val defaultJson =
+        Json {
+            prettyPrint = true
+            isLenient = true
+            ignoreUnknownKeys = true
+        }
 
     /**
      * Checks if an API task run result already exists in the database for a given task name.
@@ -62,11 +69,11 @@ abstract class BaseApiTask: ApiTask {
                     if (existingTask != null) {
                         // Compare all fields to check if there are any changes
                         existingTask[ApiTaskTable.apiTaskName] != taskConfig.taskName ||
-                                existingTask[ApiTaskTable.apiTaskDescription] != taskConfig.taskDescription ||
-                                existingTask[ApiTaskTable.apiTaskCronExpression] != taskConfig.cronExpression ||
-                                existingTask[ApiTaskTable.apiTaskMaxRetries] != taskConfig.maxRetries ||
-                                existingTask[ApiTaskTable.apiTaskRetryDelay] != taskConfig.retryDelay.toMinutes().toInt() ||
-                                existingTask[ApiTaskTable.apiTaskTimeout] != taskConfig.timeout.toMinutes().toInt()
+                            existingTask[ApiTaskTable.apiTaskDescription] != taskConfig.taskDescription ||
+                            existingTask[ApiTaskTable.apiTaskCronExpression] != taskConfig.cronExpression ||
+                            existingTask[ApiTaskTable.apiTaskMaxRetries] != taskConfig.maxRetries ||
+                            existingTask[ApiTaskTable.apiTaskRetryDelay] != taskConfig.retryDelay.toMinutes().toInt() ||
+                            existingTask[ApiTaskTable.apiTaskTimeout] != taskConfig.timeout.toMinutes().toInt()
                     } else {
                         // If no existing task found, we should insert
                         true
@@ -105,9 +112,9 @@ abstract class BaseApiTask: ApiTask {
      */
     override suspend fun saveApiTaskRun(
         results: Pair<
-                ApiTaskResult,
-                MutableList<Any>,
-                >,
+            ApiTaskResult,
+            MutableList<Any>,
+        >,
     ): Boolean {
         try {
             transaction {
