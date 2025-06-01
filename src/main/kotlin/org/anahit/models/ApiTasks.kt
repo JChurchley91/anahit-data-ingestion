@@ -11,11 +11,11 @@ object ApiTaskTable : Table("logging.api_tasks") {
     val apiTaskId = integer("api_task_id")
     val apiTaskName = varchar("api_task_name", 255)
     val apiTaskDescription = text("api_task_description")
-    val apiTaskLastUpdatedAt = date("api_task_updated_at").nullable()
-    val cronExpression = varchar("cron_expression", 255)
-    val maxRetries = integer("max_retries")
-    val retryDelay = integer("retry_delay")
-    val timeout = integer("timeout")
+    val apiTaskLastUpdatedAt = date("api_task_last_updated_at").nullable()
+    val apiTaskCronExpression = varchar("api_task_cron_expression", 255)
+    val apiTaskMaxRetries = integer("api_task_max_retries")
+    val apiTaskRetryDelay = integer("api_task_retry_delay")
+    val apiTaskTimeout = integer("api_task_timeout")
 
     override val primaryKey = PrimaryKey(apiTaskId)
 }

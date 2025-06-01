@@ -3,10 +3,8 @@ package org.anahit.api
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -31,6 +29,8 @@ class TrendingNewsArticles : BaseApiTask() {
     override val timeout: Duration = Duration.ofMinutes(5)
     private val taskRunTime = LocalDateTime.now()
     private val apiKey = "8e57b6225f964253a6c9737ed851dc54"
+    private val countries: List<String> = listOf("US")
+    private val categories: List<String> = listOf("general", "business", "technology", "health")
 
     val defaultJson =
         Json {
@@ -69,6 +69,8 @@ class TrendingNewsArticles : BaseApiTask() {
         val source: Source,
         val title: String?,
         val description: String?,
+        var country: String? = null,
+        var category: String? = null,
         val url: String?,
         @SerialName("publishedAt")
         val publishedAt: String?,
@@ -101,54 +103,66 @@ class TrendingNewsArticles : BaseApiTask() {
             )
         } else {
             logger.info("Fetching News From NewsAPI.org")
-            val client =
-                HttpClient(CIO) {
-                }
-            try {
-                val apiResponses = mutableListOf<Any>()
-                val response =
-                    client.get(
-                        "https://newsapi.org/v2/top-headlines" +
-                            "?country=us&apiKey=$apiKey",
-                    )
-                val responseBody: String = response.body()
+            val client = HttpClient(CIO) {}
+            val apiResponses = mutableListOf<Any>()
+            for (country in countries) {
+                logger.info("Fetching News From $country")
+                for (category in categories) {
+                    logger.info("Fetching News From $category")
+                    try {
+                        val response =
+                            client.get(
+                                "https://newsapi.org/v2/top-headlines" +
+                                    "?country=$country" +
+                                    "&category=$category" +
+                                    "&apiKey=$apiKey",
+                            )
+                        val responseBody: String = response.body()
 
-                if (response.status == HttpStatusCode.OK) {
-                    val newsApiResponse: NewsApiResponse = defaultJson.decodeFromString(responseBody)
-                    apiResponses.add(newsApiResponse)
-                } else {
-                    logger.error("Failed To Fetch News From NewsAPI.org")
-                    return Pair(
-                        ApiTaskResult.Error(
-                            taskId = taskId,
-                            apiTaskRunName = "$now-$taskName",
-                            apiTaskRunStatus = "Failed",
-                            apiTaskRunExecutedAt = taskRunTime,
-                        ),
-                        apiResponses,
-                    )
+                        if (response.status == HttpStatusCode.OK) {
+                            val newsApiResponse: NewsApiResponse =
+                                defaultJson
+                                    .decodeFromString(responseBody)
+                            newsApiResponse.articles.forEach { article ->
+                                article.country = country
+                                article.category = category
+                            }
+                            apiResponses.add(newsApiResponse)
+                        } else {
+                            logger.error("Failed To Fetch News From NewsAPI.org")
+                            return Pair(
+                                ApiTaskResult.Error(
+                                    taskId = taskId,
+                                    apiTaskRunName = "$now-$taskName",
+                                    apiTaskRunStatus = "Failed",
+                                    apiTaskRunExecutedAt = taskRunTime,
+                                ),
+                                apiResponses,
+                            )
+                        }
+                    } catch (exception: Exception) {
+                        logger.error("Failed To Fetch News From NewsAPI.org", exception)
+                        return Pair(
+                            ApiTaskResult.Error(
+                                taskId = taskId,
+                                apiTaskRunName = "$now-$taskName",
+                                apiTaskRunStatus = "Failed",
+                                apiTaskRunExecutedAt = taskRunTime,
+                            ),
+                            second = mutableListOf(),
+                        )
+                    }
                 }
-                return Pair(
-                    ApiTaskResult.Success(
-                        taskId = taskId,
-                        apiTaskRunName = "$now-$taskName",
-                        apiTaskRunStatus = "Success",
-                        apiTaskRunExecutedAt = taskRunTime,
-                    ),
-                    apiResponses,
-                )
-            } catch (exception: Exception) {
-                logger.error("Failed To Fetch News From NewsAPI.org", exception)
-                return Pair(
-                    ApiTaskResult.Error(
-                        taskId = taskId,
-                        apiTaskRunName = "$now-$taskName",
-                        apiTaskRunStatus = "Failed",
-                        apiTaskRunExecutedAt = taskRunTime,
-                    ),
-                    second = mutableListOf(),
-                )
             }
+            return Pair(
+                ApiTaskResult.Success(
+                    taskId = taskId,
+                    apiTaskRunName = "$now-$taskName",
+                    apiTaskRunStatus = "Success",
+                    apiTaskRunExecutedAt = taskRunTime,
+                ),
+                apiResponses,
+            )
         }
     }
 
@@ -168,14 +182,25 @@ class TrendingNewsArticles : BaseApiTask() {
                 logger.info("No News API Responses Found; Skipping Save")
                 return true
             } else {
-                val top10Articles = apiResponses.flatMap { it.articles }.take(10)
-                for (article in top10Articles) {
+                val apiResponseArticles =
+                    apiResponses.flatMap { response ->
+                        response.articles
+                            .groupBy { article ->
+                                "${article.country}-${article.category}"
+                            }.mapValues { (_, articles) ->
+                                articles.take(10) // Limit to 10 articles per country-category combination
+                            }.values
+                            .flatten()
+                    }
+                for (article in apiResponseArticles) {
                     transaction {
                         TrendingNewsArticlesTable.insert {
                             it[apiTaskId] = taskId
                             it[apiTaskRunName] = results.first.apiTaskRunName
                             it[articleSourceName] = article.source.name.toString()
                             it[articleTitle] = article.title.toString()
+                            it[articleCountry] = article.country.toString()
+                            it[articleCategory] = article.category.toString()
                             it[articleDescription] = article.description.toString()
                             it[articleUrl] = article.url.toString()
                             it[articlePublishedAt] = article.publishedAt.toString()

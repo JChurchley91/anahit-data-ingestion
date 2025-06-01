@@ -158,10 +158,10 @@ abstract class BaseApiTask : ApiTask {
                         // Compare all fields to check if there are any changes
                         existingTask[ApiTaskTable.apiTaskName] != taskConfig.taskName ||
                             existingTask[ApiTaskTable.apiTaskDescription] != taskConfig.taskDescription ||
-                            existingTask[ApiTaskTable.cronExpression] != taskConfig.cronExpression ||
-                            existingTask[ApiTaskTable.maxRetries] != taskConfig.maxRetries ||
-                            existingTask[ApiTaskTable.retryDelay] != taskConfig.retryDelay.toMinutes().toInt() ||
-                            existingTask[ApiTaskTable.timeout] != taskConfig.timeout.toMinutes().toInt()
+                            existingTask[ApiTaskTable.apiTaskCronExpression] != taskConfig.cronExpression ||
+                            existingTask[ApiTaskTable.apiTaskMaxRetries] != taskConfig.maxRetries ||
+                            existingTask[ApiTaskTable.apiTaskRetryDelay] != taskConfig.retryDelay.toMinutes().toInt() ||
+                            existingTask[ApiTaskTable.apiTaskTimeout] != taskConfig.timeout.toMinutes().toInt()
                     } else {
                         // If no existing task found, we should insert
                         true
@@ -173,10 +173,10 @@ abstract class BaseApiTask : ApiTask {
                         it[apiTaskName] = taskConfig.taskName
                         it[apiTaskDescription] = taskConfig.taskDescription
                         it[apiTaskLastUpdatedAt] = now
-                        it[cronExpression] = taskConfig.cronExpression
-                        it[maxRetries] = taskConfig.maxRetries
-                        it[retryDelay] = taskConfig.retryDelay.toMinutes().toInt()
-                        it[timeout] = taskConfig.timeout.toMinutes().toInt()
+                        it[apiTaskCronExpression] = taskConfig.cronExpression
+                        it[apiTaskMaxRetries] = taskConfig.maxRetries
+                        it[apiTaskRetryDelay] = taskConfig.retryDelay.toMinutes().toInt()
+                        it[apiTaskTimeout] = taskConfig.timeout.toMinutes().toInt()
                     }
                 }
                 true
